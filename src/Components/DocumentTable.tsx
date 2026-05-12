@@ -99,7 +99,7 @@ export default function DocumentTable({ data, title, actions }: Props) {
                                         <td rowSpan={results.length || 1} style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                                             {row.fileName}
                                         </td>
-                                        <td>
+                                        <td rowSpan={results.length || 1}>
                                             {results[0]?.modelType && (
                                                 <span className="label-badge">v{results[0].modelType}</span>
                                             )}
