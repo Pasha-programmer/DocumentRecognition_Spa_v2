@@ -74,6 +74,7 @@ export default function DocumentTable({ data, title, actions }: Props) {
                             <th style={{ width: 60 }}></th>
                             <th>Файл</th>
                             <th>Символ</th>
+                            <th>Модель</th>
                             <th>Точность</th>
                             {actions && <th></th>}
                         </tr>
@@ -97,6 +98,11 @@ export default function DocumentTable({ data, title, actions }: Props) {
                                         </td>
                                         <td rowSpan={results.length || 1} style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                                             {row.fileName}
+                                        </td>
+                                        <td>
+                                            {results[0]?.modelType && (
+                                                <span className="label-badge">v{results[0].modelType}</span>
+                                            )}
                                         </td>
                                         <td>
                                             {results[0]?.label && (

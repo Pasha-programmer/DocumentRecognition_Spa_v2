@@ -19,6 +19,9 @@ export default function HomePage() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [uploaderKey, setUploaderKey] = useState(0);
 
+     // ── Model selection state ──
+    const [selectedModel, setSelectedModel] = useState<number>(3);
+
     // ── API ──
     const queryClient = useQueryClient();
 
@@ -131,6 +134,7 @@ export default function HomePage() {
     const onUpload = () => {
         if (!files.length) return;
         const formData = new FormData();
+        formData.append('modelType', selectedModel.toString())
         files.forEach(f => formData.append('images', f));
         upload.mutate(formData);
     };
@@ -196,6 +200,24 @@ export default function HomePage() {
 
                     {/* File upload card */}
                     <div className="upload-card">
+                        {/* Model selection dropdown */}
+                        <div className="model-selector">
+                            <label htmlFor="modelSelect" className="model-selector-label">
+                                Модель распознавания:
+                            </label>
+                            <select
+                                id="modelSelect"
+                                value={selectedModel}
+                                onChange={(e) => setSelectedModel(Number.parseInt(e.target.value))}
+                                className="model-select"
+                                disabled={upload.isPending}
+                            >
+                                <option value="1">v1</option>
+                                <option value="2">v2</option>
+                                <option value="3">v3</option>
+                            </select>
+                        </div>
+
                         <p className="upload-card-title">📁 Файлы</p>
                         <div
                             key={uploaderKey}
