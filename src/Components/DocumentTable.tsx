@@ -4,6 +4,7 @@ import { IRecognizedDocumentDto } from '../Interfaces/IRecognizedDocumentDto';
 interface Props {
     data: IRecognizedDocumentDto[];
     title: string;
+    countPredictions?: number;
     actions?: (documentId: number) => JSX.Element;
     tableActions?: JSX.Element;
 }
@@ -39,7 +40,7 @@ function SortIcon({ dir }: { dir: SortDir }) {
 }
 
 
-export default function DocumentTable({ data, title, actions, tableActions}: Props) {
+export default function DocumentTable({ data, title, countPredictions, actions, tableActions}: Props) {
     const [imageUrls, setImageUrls] = useState<Map<number, string>>(new Map());
     const [sortKey, setSortKey] = useState<SortKey | null>(null);
     const [sortDir, setSortDir] = useState<SortDir>('none');
@@ -167,19 +168,19 @@ export default function DocumentTable({ data, title, actions, tableActions}: Pro
                             return (
                                 <Fragment key={row.documentId}>
                                     <tr 
-                                    // className={results.length ? (row.fileName.indexOf(results[0].label) >= 0 ? 'yellow' : 'red') : ''}
+                                    className={results.length ? (row.fileName.indexOf(results[0].label) >= 0 ? 'yellow' : 'red') : ''}
                                         >
-                                        <td rowSpan={results.length || 1}>
+                                        <td rowSpan={countPredictions || 1}>
                                             {imgUrl ? (
                                                 <img src={imgUrl} alt={row.fileName} className="doc-thumb" />
                                             ) : (
                                                 <div className="doc-thumb-placeholder">📄</div>
                                             )}
                                         </td>
-                                        <td rowSpan={results.length || 1} style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                                        <td rowSpan={countPredictions || 1} style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                                             {row.fileName}
                                         </td>
-                                        <td rowSpan={results.length || 1}>
+                                        <td rowSpan={countPredictions || 1}>
                                             {results[0]?.modelType && (
                                                 <span className="label-badge">{results[0].modelType}</span>
                                             )}
@@ -195,10 +196,10 @@ export default function DocumentTable({ data, title, actions, tableActions}: Pro
                                             )}
                                         </td>
                                         {actions && (
-                                            <td rowSpan={results.length || 1}>{actions(row.documentId)}</td>
+                                            <td rowSpan={countPredictions || 1}>{actions(row.documentId)}</td>
                                         )}
                                     </tr>
-                                    {results.slice(1).map((rr, idx) => (
+                                    {results.slice(1, countPredictions).map((rr, idx) => (
                                         <tr key={`${row.documentId}-${idx}`}>
                                             <td>
                                                 <span className="label-badge">{rr.label}</span>

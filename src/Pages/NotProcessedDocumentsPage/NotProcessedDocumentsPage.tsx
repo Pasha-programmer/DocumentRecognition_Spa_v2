@@ -10,6 +10,8 @@ export default function NotProcessedDocumentsPage() {
     const { data } = useQuery<IRecognizedDocumentDto[]>({
         queryKey: ['api/documents', 'hasProbability=false'],
         queryFn: () => get('api/documents', { params: { hasProbability: false } }),
+        refetchInterval: 3000,
+        refetchIntervalInBackground: false,
     });
 
     const aiModelTypes = useQuery<string[]>({
