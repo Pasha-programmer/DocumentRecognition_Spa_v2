@@ -5,6 +5,7 @@ interface Props {
     data: IRecognizedDocumentDto[];
     title: string;
     actions?: (documentId: number) => JSX.Element;
+    tableActions?: JSX.Element;
 }
 
 function base64ToBlob(base64String: string, mimeType = 'image/jpeg'): Blob {
@@ -22,8 +23,26 @@ function dataURLtoBlob(dataURL: string): Blob {
     return base64ToBlob(base64Data, mime);
 }
 
-export default function DocumentTable({ data, title, actions }: Props) {
+type SortKey = 'fileName' | 'label' | 'modelType' | 'probability';
+type SortDir = 'asc' | 'desc' | 'none';
+
+function nextDir(current: SortDir): SortDir {
+    if (current === 'none') return 'asc';
+    if (current === 'asc') return 'desc';
+    return 'none';
+}
+
+function SortIcon({ dir }: { dir: SortDir }) {
+    if (dir === 'none') return <span style={{ opacity: 0.25, fontSize: '0.7rem', marginLeft: 4 }}>⇅</span>;
+    if (dir === 'asc')  return <span style={{ opacity: 0.8,  fontSize: '0.7rem', marginLeft: 4 }}>↑</span>;
+    return                      <span style={{ opacity: 0.8,  fontSize: '0.7rem', marginLeft: 4 }}>↓</span>;
+}
+
+
+export default function DocumentTable({ data, title, actions, tableActions}: Props) {
     const [imageUrls, setImageUrls] = useState<Map<number, string>>(new Map());
+    const [sortKey, setSortKey] = useState<SortKey | null>(null);
+    const [sortDir, setSortDir] = useState<SortDir>('none');
 
     useEffect(() => {
         if (!data) return;
@@ -53,13 +72,64 @@ export default function DocumentTable({ data, title, actions }: Props) {
         };
     }, [data]);
 
-    const sorted = data ? [...data].sort((a, b) => b.documentId - a.documentId) : [];
+    const handleSort = (key: SortKey) => {
+        if (sortKey !== key) {
+            setSortKey(key);
+            setSortDir('asc');
+        } else {
+            const next = nextDir(sortDir);
+            setSortDir(next);
+            if (next === 'none') setSortKey(null);
+        }
+    };
+
+    const dirFor = (key: SortKey): SortDir =>
+        sortKey === key ? sortDir : 'none';
+
+    const sorted = (() => {
+        const base = data ? [...data].sort((a, b) => b.documentId - a.documentId) : [];
+        if (!sortKey || sortDir === 'none') return base;
+
+        return [...base].sort((a, b) => {
+            const topA = [...(a.recognitionResults || [])].sort((x, y) => y.probability - x.probability)[0];
+            const topB = [...(b.recognitionResults || [])].sort((x, y) => y.probability - x.probability)[0];
+
+            let valA: string | number = '';
+            let valB: string | number = '';
+
+            switch (sortKey) {
+                case 'fileName':
+                    valA = a.fileName.toLowerCase();
+                    valB = b.fileName.toLowerCase();
+                    break;
+                case 'label':
+                    valA = topA?.label?.toLowerCase() ?? '';
+                    valB = topB?.label?.toLowerCase() ?? '';
+                    break;
+                case 'modelType':
+                    valA = topA?.modelType ?? 0;
+                    valB = topB?.modelType ?? 0;
+                    break;
+                case 'probability':
+                    valA = topA?.probability ?? 0;
+                    valB = topB?.probability ?? 0;
+                    break;
+            }
+
+            if (valA < valB) return sortDir === 'asc' ? -1 : 1;
+            if (valA > valB) return sortDir === 'asc' ? 1 : -1;
+            return 0;
+        });
+    })();
+
+    const thStyle: React.CSSProperties = { cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' };
 
     return (
         <div className="doc-table-wrapper">
             <div className="doc-table-header">
                 <span className="doc-table-title">{title}</span>
                 {data && <span className="doc-table-count">{data.length} записей</span>}
+                {tableActions}
             </div>
 
             {!data || data.length === 0 ? (
@@ -72,10 +142,18 @@ export default function DocumentTable({ data, title, actions }: Props) {
                     <thead>
                         <tr>
                             <th style={{ width: 60 }}></th>
-                            <th>Файл</th>
-                            <th>Символ</th>
-                            <th>Модель</th>
-                            <th>Точность</th>
+                            <th style={thStyle} onClick={() => handleSort('fileName')}>
+                                Файл <SortIcon dir={dirFor('fileName')} />
+                            </th>
+                            <th style={thStyle} onClick={() => handleSort('modelType')}>
+                                Символ <SortIcon dir={dirFor('modelType')} />
+                            </th>
+                            <th style={thStyle} onClick={() => handleSort('label')}>
+                                Модель <SortIcon dir={dirFor('label')} />
+                            </th>
+                            <th style={thStyle} onClick={() => handleSort('probability')}>
+                                Точность <SortIcon dir={dirFor('probability')} />
+                            </th>
                             {actions && <th></th>}
                         </tr>
                     </thead>
@@ -88,7 +166,9 @@ export default function DocumentTable({ data, title, actions }: Props) {
 
                             return (
                                 <Fragment key={row.documentId}>
-                                    <tr>
+                                    <tr 
+                                    // className={results.length ? (row.fileName.indexOf(results[0].label) >= 0 ? 'yellow' : 'red') : ''}
+                                        >
                                         <td rowSpan={results.length || 1}>
                                             {imgUrl ? (
                                                 <img src={imgUrl} alt={row.fileName} className="doc-thumb" />
@@ -101,7 +181,7 @@ export default function DocumentTable({ data, title, actions }: Props) {
                                         </td>
                                         <td rowSpan={results.length || 1}>
                                             {results[0]?.modelType && (
-                                                <span className="label-badge">v{results[0].modelType}</span>
+                                                <span className="label-badge">{results[0].modelType}</span>
                                             )}
                                         </td>
                                         <td>

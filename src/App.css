@@ -213,8 +213,8 @@ body::after {
 }
 
 .sidebar-link.active {
-  background: rgba(59, 130, 246, 0.12);
-  color: #93c5fd;
+  background: rgba(59, 131, 246, 0.096);
+  color: #546eff;
 }
 
 .sidebar-link.active::before {
@@ -707,8 +707,9 @@ table.dt tbody tr:hover td {
 }
 
 table.dt .doc-thumb {
-  width: 44px;
-  height: 44px;
+  max-width: 60px;
+  max-height: 60px;
+  scale: 2;
   border-radius: var(--radius-sm);
   object-fit: cover;
   border: 1px solid var(--border-subtle);
@@ -736,7 +737,7 @@ table.dt .doc-thumb {
   font-weight: 500;
   background: rgba(59, 130, 246, 0.12);
   border: 1px solid rgba(59, 130, 246, 0.25);
-  color: #93c5fd;
+  color: #546eff;
   font-family: 'Syne', sans-serif;
   letter-spacing: 0.04em;
 }
@@ -1009,4 +1010,12 @@ table.dt .doc-thumb {
   inset: 0;
   background: rgba(0, 0, 0, 0.5);
   z-index: 99;
+}
+
+.yellow{
+  background-color: #d0ff003a;
+}
+
+.red{
+  background-color: #ff00003f;
 }

@@ -2,6 +2,15 @@ import { RoutePaths } from '../Constants/RoutePaths';
 
 const links = [
     {
+        href: RoutePaths.Home,
+        label: 'Главная',
+        icon: (
+            <svg viewBox="0 0 20 20" fill="currentColor" className="sidebar-icon">
+                <path d="M12 3L2 12h2v8h6v-6h4v6h6v-8h2L12 3z"/>    
+            </svg>
+        ),
+    },
+    {
         href: RoutePaths.Documents,
         label: 'Все документы',
         icon: (

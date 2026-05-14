@@ -20,7 +20,7 @@ export default function HomePage() {
     const [uploaderKey, setUploaderKey] = useState(0);
 
      // ── Model selection state ──
-    const [selectedModel, setSelectedModel] = useState<number>(3);
+    const [selectedModel, setSelectedModel] = useState<string>();
 
     // ── API ──
     const queryClient = useQueryClient();
@@ -42,6 +42,18 @@ export default function HomePage() {
             params: { fromDate: startOfToday(), toDate: endOfToday() },
         }),
     }, queryClient);
+
+    const aiModelTypes = useQuery<string[]>({
+        queryKey: ['api/documents/aiModelTypes'],
+        queryFn: () => get('api/documents/aiModelTypes'),
+        
+    });
+
+    useEffect(() => {
+        if (!selectedModel && aiModelTypes.data){
+            setSelectedModel(aiModelTypes.data[aiModelTypes.data.length - 1])
+        }
+    }, [aiModelTypes.data])
 
     // ── Camera logic ──
     const openCamera = useCallback(async () => {
@@ -134,7 +146,7 @@ export default function HomePage() {
     const onUpload = () => {
         if (!files.length) return;
         const formData = new FormData();
-        formData.append('modelType', selectedModel.toString())
+        formData.append('modelType', selectedModel!)
         files.forEach(f => formData.append('images', f));
         upload.mutate(formData);
     };
@@ -205,17 +217,18 @@ export default function HomePage() {
                             <label htmlFor="modelSelect" className="model-selector-label">
                                 Модель распознавания:
                             </label>
-                            <select
+                            {aiModelTypes.isSuccess && <select
                                 id="modelSelect"
                                 value={selectedModel}
-                                onChange={(e) => setSelectedModel(Number.parseInt(e.target.value))}
+                                onChange={(e) => setSelectedModel(e.target.value)}
                                 className="model-select"
                                 disabled={upload.isPending}
+                                defaultValue={aiModelTypes.data[aiModelTypes.data.length - 1]}
                             >
-                                <option value="1">v1</option>
-                                <option value="2">v2</option>
-                                <option value="3">v3</option>
-                            </select>
+                                {aiModelTypes.data.map(t => {
+                                    return (<option key={t} value={t}>{t}</option>)
+                                })}
+                            </select>}
                         </div>
 
                         <p className="upload-card-title">📁 Файлы</p>
