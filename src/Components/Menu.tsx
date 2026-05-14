@@ -67,6 +67,20 @@ export default function Menu(props: {
                         {<span className="link-label">{link.label}</span>}
                     </a>
                 ))}
+
+                <br/>
+
+                <div className='sidebar-label'>Инструменты</div>
+
+                <a
+                    key="Symbol/Slicer"
+                    href="http://localhost:8080/index.html"
+                    target="_blank"
+                    className='sidebar-link'
+                    onClick={() => props.setMobileOpen(false)} // закрыть после перехода
+                >
+                    <span className='link-label'>Symbol/Slicer</span>
+                </a>
             </nav>
         </>
     );
