@@ -46,6 +46,8 @@ export default function RecognizedDocumentsPage() {
         }
     }, [data])
 
+    const predictionOptionValues = [{label: "Все", value: maxCountPredictions}].concat(Array.from({ length: maxCountPredictions }, (_, i) => ({label: (i + 1).toString(), value: i + 1})))
+
     return (
         <>
             <h1 className="page-title">Распознанные документы</h1>
@@ -58,7 +60,7 @@ export default function RecognizedDocumentsPage() {
                         return (
                             <button 
                                 key={"reprocess_all"}
-                                className="btn btn-ghost btn-sm red"
+                                className="btn btn-danger btn-sm red"
                                 onClick={() => deleteDocument.mutate(documentId)}
                                 disabled={!data?.length}>
                                 Удалить
@@ -67,28 +69,33 @@ export default function RecognizedDocumentsPage() {
                     }}
                     tableActions={
                         <>
-                        {data.length ?
-                            <select
-                                id="modelSelect"
-                                value={countPredictions}
-                                onChange={(e) => setCountPredictions(Number.parseInt(e.target.value))}
-                                className="model-select"
-                                disabled={!data}
-                                style={{maxWidth: 70}}
-                            >
-                            {Array.from({ length: maxCountPredictions }, (_, i) => i + 1).map(n => (
-                                    <option key={n} value={n}>{n}</option>
-                                ))}
-                            </select>
-                            : undefined}
-                        <button
-                            key={"reprocess_all"}
-                            className="btn btn-ghost btn-sm red"
-                            onClick={() => deleteDocuments.mutate(data.map(d => d.documentId))}
-                            disabled={!data?.length}
-                            >
-                            Удалить
-                        </button>
+                            {data.length ?
+                                <div className="label-value">
+                                    <label htmlFor="modelSelect">
+                                        Количество предсказаний
+                                    </label>
+                                    <select
+                                        id="modelSelect"
+                                        value={countPredictions}
+                                        onChange={(e) => setCountPredictions(Number.parseInt(e.target.value))}
+                                        className="model-select"
+                                        disabled={!data}
+                                        style={{maxWidth: 70}}
+                                    >
+                                        {predictionOptionValues.map(v => (
+                                            <option key={v.label + v.value} value={v.value}>{v.label}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                                : undefined}
+                            <button
+                                key={"reprocess_all"}
+                                className="btn btn-danger btn-sm red"
+                                onClick={() => deleteDocuments.mutate(data.map(d => d.documentId))}
+                                disabled={!data?.length}
+                                >
+                                Удалить все
+                            </button>
                         </>
                     }
                 />}

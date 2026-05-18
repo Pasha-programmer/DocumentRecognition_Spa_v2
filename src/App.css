@@ -651,6 +651,18 @@ body::after {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.doc-table-header-main {
+  display: flex;
+  gap: 10px;
+}
+
+.doc-table-header-secondary {
+  display: flex;
+  gap: 10px;
 }
 
 .doc-table-title {
@@ -1017,5 +1029,25 @@ table.dt .doc-thumb {
 }
 
 .red{
-  background-color: #ff00003f;
+  background-color: #ff000057;
+}
+
+label{
+  font-family: 'Syne', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+
+.label-value{
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  align-content: center;
+  flex-wrap: nowrap;
+  flex-direction: row;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);;
+  padding: 0% 0px 0px 10px;
 }

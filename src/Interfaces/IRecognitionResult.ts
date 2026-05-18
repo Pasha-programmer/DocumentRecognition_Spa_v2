@@ -1,7 +1,7 @@
 export interface IRecognitionResult
 {
     documentId: number;
-    modelType: number;
+    modelType: string;
     label: string;
     probability: number;
 }

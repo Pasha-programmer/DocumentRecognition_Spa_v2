@@ -20,7 +20,7 @@ export default function HomePage() {
     const [uploaderKey, setUploaderKey] = useState(0);
 
      // ── Model selection state ──
-    const [selectedModel, setSelectedModel] = useState<string>();
+    const [selectedModel, setSelectedModel] = useState<string>("All");
 
     // ── API ──
     const queryClient = useQueryClient();
@@ -46,7 +46,6 @@ export default function HomePage() {
     const aiModelTypes = useQuery<string[]>({
         queryKey: ['api/documents/aiModelTypes'],
         queryFn: () => get('api/documents/aiModelTypes'),
-        
     });
 
     useEffect(() => {
