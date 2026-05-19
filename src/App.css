@@ -719,9 +719,10 @@ table.dt tbody tr:hover td {
 }
 
 table.dt .doc-thumb {
-  max-width: 60px;
-  max-height: 60px;
-  scale: 2;
+  max-width: 50px;
+  max-height: 50px;
+  min-width: 20px;
+  min-height: 20px;
   border-radius: var(--radius-sm);
   object-fit: cover;
   border: 1px solid var(--border-subtle);

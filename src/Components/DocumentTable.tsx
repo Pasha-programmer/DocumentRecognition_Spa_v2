@@ -1,13 +1,22 @@
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import { IRecognizedDocumentDto } from '../Interfaces/IRecognizedDocumentDto';
 import { IRecognitionResult } from '../Interfaces/IRecognitionResult';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { get } from '../Services/ApiClient';
 
 interface Props {
     data: IRecognizedDocumentDto[];
     title: string;
     countPredictions: number;
+    includeAveragePrediction?: boolean;
+    includeSoftVotingPrediction?: boolean;
     actions?: (documentId: number) => JSX.Element;
     tableActions?: JSX.Element;
+}
+
+interface KeyValuePair<K,V> {
+    key: K,
+    value: V
 }
 
 function base64ToBlob(base64String: string, mimeType = 'image/jpeg'): Blob {
@@ -40,18 +49,26 @@ function SortIcon({ dir }: { dir: SortDir }) {
     return                      <span style={{ opacity: 0.8,  fontSize: '0.7rem', marginLeft: 4 }}>↓</span>;
 }
 
-export default function DocumentTable({ data, title, countPredictions, actions, tableActions}: Props) {
+export default function DocumentTable(props: Props) {
     const [imageUrls, setImageUrls] = useState<Map<number, string>>(new Map());
     const [sortKey, setSortKey] = useState<SortKey | null>(null);
     const [sortDir, setSortDir] = useState<SortDir>('none');
 
     const isDev = true;
 
+    const queryClient = useQueryClient();
+
+    const aiModelsAccuracy = useQuery<[]>({
+        queryKey: ['api/documents/aiModelTypes/test-accuracy'],
+        queryFn: () => get('api/documents/aiModelTypes/test-accuracy'),
+        // enabled: props.includeSoftVotingPrediction
+    }, queryClient);
+
     useEffect(() => {
-        if (!data) return;
+        if (!props.data) return;
         const urls = new Map<number, string>();
 
-        data.forEach(doc => {
+        props.data.forEach(doc => {
             if (!doc.fileBlob) return;
             try {
                 let blob: Blob;
@@ -73,7 +90,7 @@ export default function DocumentTable({ data, title, countPredictions, actions, 
         return () => {
             urls.forEach(url => url.startsWith('blob:') && URL.revokeObjectURL(url));
         };
-    }, [data]);
+    }, [props.data]);
 
     const handleSort = (key: SortKey) => {
         if (sortKey !== key) {
@@ -90,7 +107,7 @@ export default function DocumentTable({ data, title, countPredictions, actions, 
         sortKey === key ? sortDir : 'none';
 
     const sorted = (() => {
-        const base = data ? [...data].sort((a, b) => b.documentId - a.documentId) : [];
+        const base = props.data ? [...props.data].sort((a, b) => b.documentId - a.documentId) : [];
         if (!sortKey || sortDir === 'none') return base;
 
         return [...base].sort((a, b) => {
@@ -127,11 +144,11 @@ export default function DocumentTable({ data, title, countPredictions, actions, 
 
     const thStyle: React.CSSProperties = { cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' };
 
-    const getAverageProbability = useCallback((results: IRecognitionResult[]): { label: string, probability: number} | undefined => {
-        let group = groupBy(results, 'label')
+    const getAveragePrediction = useCallback((results: IRecognitionResult[]): Partial<IRecognitionResult> | undefined => {
+        let groups = groupBy(results, 'label')
 
-        let sortedRecognitionResult = Object.keys(group)
-            .map(x => ({averageProbability: group[x].map(xx => xx.probability).reduce((q, w) => q + w) / group[x].length, items: group[x]}))
+        let sortedRecognitionResult = Object.keys(groups)
+            .map(x => ({averageProbability: groups[x].map(xx => xx.probability).reduce((q, w) => q + w) / groups[x].length, items: groups[x]}))
             .sort((x: any, y: any) => y.averageProbability - x.averageProbability)
 
         if (!sortedRecognitionResult.length){
@@ -139,9 +156,40 @@ export default function DocumentTable({ data, title, countPredictions, actions, 
         }
 
         return {
+            documentId: results[0].documentId,
+            modelType: "Среднее",
             label: sortedRecognitionResult[0].items[0].label,
-            probability: sortedRecognitionResult[0].averageProbability
         }
+    }, [])
+
+    const getSoftVotingPrediction = useCallback((results: IRecognitionResult[], aiModelsAccuracy: KeyValuePair<string, number>[]): Partial<IRecognitionResult> | undefined => {
+        let groups = groupBy(results, 'label')
+        let softVotingPrediction: Partial<IRecognitionResult> = {
+            documentId: results[0].documentId,
+            modelType: "Взвешенное голосование",
+            label: "", 
+            probability: 0,
+        }
+
+        Object.keys(groups).map(g => groups[g]).forEach((group: IRecognitionResult[]) => {
+            let sum = group.map(g => {
+                let aiModelAccuracy = aiModelsAccuracy.find(m => m.key === g.modelType)!.value
+                return g.probability * aiModelAccuracy
+            }).reduce((sum, p) => sum + p)
+
+            if (softVotingPrediction.probability! < sum){
+                softVotingPrediction.probability = sum
+                softVotingPrediction.label = group[0].label
+            }
+        });
+
+        if (softVotingPrediction.probability = 0){
+            return undefined
+        }
+
+        softVotingPrediction.probability = undefined
+
+        return softVotingPrediction
     }, [])
 
     function groupBy(array: IRecognitionResult[], key: keyof IRecognitionResult): {} {
@@ -155,19 +203,21 @@ export default function DocumentTable({ data, title, countPredictions, actions, 
         }, {});
     }
 
+    const countPredictions = props.countPredictions + (props.includeAveragePrediction ? 1 : 0) + (props.includeSoftVotingPrediction ? 1 : 0)
+
     return (
         <div className="doc-table-wrapper">
             <div className="doc-table-header">
                 <div className="doc-table-header-main">
-                    <span className="doc-table-title">{title}</span>
-                    {data && <span className="doc-table-count">{data.length} записей</span>}
+                    <span className="doc-table-title">{props.title}</span>
+                    {props.data && <span className="doc-table-count">{props.data.length} записей</span>}
                 </div>
                 <div className="doc-table-header-secondary">
-                    {tableActions}
+                    {props.tableActions}
                 </div>
             </div>
 
-            {!data || data.length === 0 ? (
+            {!props.data || props.data.length === 0 ? (
                 <div className="empty-state">
                     <span className="empty-state-icon">🗂️</span>
                     Документы не найдены
@@ -192,54 +242,62 @@ export default function DocumentTable({ data, title, countPredictions, actions, 
                             <th style={thStyle} onClick={() => handleSort('probability')}>
                                 Точность <SortIcon dir={dirFor('probability')} />
                             </th>
-                            {actions && <th></th>}
+                            {props.actions && <th></th>}
                         </tr>
                     </thead>
                     <tbody>
                         {sorted.map(row => {
-                            const results = [...(row.recognitionResults || [])].sort(
+                            const averageRecognitionResult = props.includeAveragePrediction 
+                                ? getAveragePrediction(row.recognitionResults)
+                                : null
+
+                            const softVotingRecognitionResult = props.includeSoftVotingPrediction
+                                ? aiModelsAccuracy.data && getSoftVotingPrediction(row.recognitionResults, aiModelsAccuracy.data)
+                                : null
+
+                            let results = [...(row.recognitionResults || [])].sort(
                                 (a, b) => b.probability - a.probability
                             );
+
+                            results = [averageRecognitionResult, softVotingRecognitionResult, ...results].filter(x => x) as IRecognitionResult[]
+
                             const imgUrl = imageUrls.get(row.documentId);
 
-                            const averageRecognitionResult = getAverageProbability(row.recognitionResults)
+                            const rowSpan = results.length ? countPredictions : 0
 
                             return (
                                 <Fragment key={row.documentId}>
                                     <tr className={isDev && results.length ? (row.fileName.indexOf(results[0].label) >= 0 ? 'yellow' : 'red') : ''}>
-                                        <td rowSpan={Math.min(row.recognitionResults.length, countPredictions) + 1}>
+                                        <td rowSpan={rowSpan}>
                                             {imgUrl ? (
                                                 <img src={imgUrl} alt={row.fileName} className="doc-thumb" />
                                             ) : (
                                                 <div className="doc-thumb-placeholder">📄</div>
                                             )}
                                         </td>
-                                        <td rowSpan={Math.min(row.recognitionResults.length, countPredictions) + 1} style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                                        <td rowSpan={rowSpan} 
+                                            style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                                             {row.fileName}
                                         </td>
-                                        <td rowSpan={Math.min(row.recognitionResults.length, countPredictions) + 1}>
+                                        <td rowSpan={rowSpan}>
                                             <span className="label-badge">{row.selectedModelType}</span>
                                         </td>
                                         <td>
-                                            {averageRecognitionResult &&
-                                                <span>Среднее</span>
-                                            }
+                                            {(results.length > 0 && <span className="label-badge">{results[0].modelType}</span>)}
                                         </td>
                                         <td>
-                                            {averageRecognitionResult &&
-                                                <span className="label-badge">{averageRecognitionResult?.label}</span>
-                                            }
+                                            {results.length > 0 && <span className="label-badge">{results[0].label}</span>}
                                         </td>
                                         <td>
-                                            {averageRecognitionResult && 
-                                                <ProbBar value={averageRecognitionResult?.probability} />
-                                            }
+                                            {results.length > 0 && results[0].probability && <ProbBar value={results[0].probability} />}
                                         </td>
-                                        {actions && (
-                                            <td rowSpan={Math.min(row.recognitionResults.length, countPredictions) + 1}>{actions(row.documentId)}</td>
+                                        {props.actions && (
+                                            <td rowSpan={rowSpan}>
+                                                {props.actions(row.documentId)}
+                                            </td>
                                         )}
                                     </tr>
-                                    {results.slice(0, countPredictions).map((rr, idx) => (
+                                    {results.slice(1, countPredictions).map((rr, idx) => (
                                         <tr key={`${row.documentId}-${idx}`} 
                                             className={isDev && results.length ? (row.fileName.indexOf(results[0].label) >= 0 ? 'yellow' : 'red') : ''}>
                                             <td>
@@ -249,7 +307,7 @@ export default function DocumentTable({ data, title, countPredictions, actions, 
                                                 <span className="label-badge">{rr.label}</span>
                                             </td>
                                             <td>
-                                                <ProbBar value={rr.probability} />
+                                                {rr.probability && <ProbBar value={rr.probability} />}
                                             </td>
                                         </tr>
                                     ))}

@@ -56,6 +56,8 @@ export default function RecognizedDocumentsPage() {
                     data={data} 
                     title="Распознанные документы" 
                     countPredictions={countPredictions}
+                    includeAveragePrediction
+                    includeSoftVotingPrediction
                     actions={(documentId: number) => {
                         return (
                             <button 
