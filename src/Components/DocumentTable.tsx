@@ -45,6 +45,8 @@ export default function DocumentTable({ data, title, countPredictions, actions, 
     const [sortKey, setSortKey] = useState<SortKey | null>(null);
     const [sortDir, setSortDir] = useState<SortDir>('none');
 
+    const isDev = true;
+
     useEffect(() => {
         if (!data) return;
         const urls = new Map<number, string>();
@@ -202,13 +204,9 @@ export default function DocumentTable({ data, title, countPredictions, actions, 
 
                             const averageRecognitionResult = getAverageProbability(row.recognitionResults)
 
-                            console.log(averageRecognitionResult)
-
                             return (
                                 <Fragment key={row.documentId}>
-                                    <tr 
-                                    className={results.length ? (row.fileName.indexOf(results[0].label) >= 0 ? 'yellow' : 'red') : ''}
-                                        >
+                                    <tr className={isDev && results.length ? (row.fileName.indexOf(results[0].label) >= 0 ? 'yellow' : 'red') : ''}>
                                         <td rowSpan={Math.min(row.recognitionResults.length, countPredictions) + 1}>
                                             {imgUrl ? (
                                                 <img src={imgUrl} alt={row.fileName} className="doc-thumb" />
@@ -242,7 +240,8 @@ export default function DocumentTable({ data, title, countPredictions, actions, 
                                         )}
                                     </tr>
                                     {results.slice(0, countPredictions).map((rr, idx) => (
-                                        <tr key={`${row.documentId}-${idx}`}>
+                                        <tr key={`${row.documentId}-${idx}`} 
+                                            className={isDev && results.length ? (row.fileName.indexOf(results[0].label) >= 0 ? 'yellow' : 'red') : ''}>
                                             <td>
                                                 <span className="label-badge">{rr.modelType}</span>
                                             </td>

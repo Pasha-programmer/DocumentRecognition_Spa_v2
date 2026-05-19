@@ -293,7 +293,7 @@ export default function HomePage() {
                 </div>
             </div>
 
-            <DocumentTable data={data!} title="История на сегодня" />
+            <DocumentTable data={data!} title="История на сегодня" countPredictions={0}/>
         </>
     );
 }

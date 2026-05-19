@@ -14,7 +14,7 @@ export default function DocumentsPage(props: { title?: string }) {
     return (
         <>
             <h1 className="page-title">Все документы</h1>
-            <DocumentTable data={data!} title={props.title ?? 'Все документы'} />
+            <DocumentTable data={data!} title={props.title ?? 'Все документы'} countPredictions={0}/>
         </>
     );
 }

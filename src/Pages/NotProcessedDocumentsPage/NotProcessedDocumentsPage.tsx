@@ -91,6 +91,7 @@ export default function NotProcessedDocumentsPage() {
             <DocumentTable
                 data={data!}
                 title="Необработанные файлы"
+                countPredictions={0}
                 actions={(documentId) => (
                     <button
                         key={documentId}
