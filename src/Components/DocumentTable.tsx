@@ -8,8 +8,8 @@ interface Props {
     data: IRecognizedDocumentDto[];
     title: string;
     countPredictions: number;
-    includeAveragePrediction?: boolean;
-    includeSoftVotingPrediction?: boolean;
+    analysisModels?: AnalysisModelEnum[];
+    onlyBest?: boolean;
     actions?: (documentId: number) => JSX.Element;
     tableActions?: JSX.Element;
 }
@@ -36,6 +36,10 @@ function dataURLtoBlob(dataURL: string): Blob {
 
 type SortKey = 'fileName' | 'label' | 'selectedModelType' | 'modelType' | 'probability';
 type SortDir = 'asc' | 'desc' | 'none';
+export enum AnalysisModelEnum {
+    Average = "Среднее",
+    SoftVoting = "Взвешенное голосование"
+}
 
 function nextDir(current: SortDir): SortDir {
     if (current === 'none') return 'asc';
@@ -49,12 +53,57 @@ function SortIcon({ dir }: { dir: SortDir }) {
     return                      <span style={{ opacity: 0.8,  fontSize: '0.7rem', marginLeft: 4 }}>↓</span>;
 }
 
+
+function groupBy(array: IRecognitionResult[], key: keyof IRecognitionResult): {} {
+    return array.reduce((result, item: IRecognitionResult) => {
+        const groupKey = item[key];
+        if (!result[groupKey]) {
+            result[groupKey] = [];
+        }
+        result[groupKey].push(item);
+        return result;
+    }, {});
+}
+
+/**
+ * Возвращает уникальные элементы из последовательности
+ * @param items - исходный массив
+ * @param keySelector - опциональная функция выбора ключа для сравнения (аналог IEqualityComparer)
+ * @returns массив с уникальными элементами
+ */
+function distinct<T>(items: T[]): T[];
+function distinct<T, K>(items: T[], keySelector: (item: T) => K): T[];
+function distinct<T, K>(items: T[], keySelector?: (item: T) => K): T[] {
+  if (!items || items.length === 0) {
+    return [];
+  }
+
+  if (!keySelector) {
+    // Простое сравнение по значению (аналог сравнения по умолчанию в .NET)
+    return [...new Set(items)];
+  }
+
+  // Сравнение по выбранному ключу
+  const seenKeys = new Set<K>();
+  const result: T[] = [];
+
+  for (const item of items) {
+    const key = keySelector(item);
+    if (!seenKeys.has(key)) {
+      seenKeys.add(key);
+      result.push(item);
+    }
+  }
+
+  return result;
+}
+
 export default function DocumentTable(props: Props) {
     const [imageUrls, setImageUrls] = useState<Map<number, string>>(new Map());
     const [sortKey, setSortKey] = useState<SortKey | null>(null);
     const [sortDir, setSortDir] = useState<SortDir>('none');
 
-    const isDev = true;
+    const isDev = false;
 
     const queryClient = useQueryClient();
 
@@ -192,19 +241,6 @@ export default function DocumentTable(props: Props) {
         return softVotingPrediction
     }, [])
 
-    function groupBy(array: IRecognitionResult[], key: keyof IRecognitionResult): {} {
-        return array.reduce((result, item: IRecognitionResult) => {
-            const groupKey = item[key];
-            if (!result[groupKey]) {
-                result[groupKey] = [];
-            }
-            result[groupKey].push(item);
-            return result;
-        }, {});
-    }
-
-    const countPredictions = props.countPredictions + (props.includeAveragePrediction ? 1 : 0) + (props.includeSoftVotingPrediction ? 1 : 0)
-
     return (
         <div className="doc-table-wrapper">
             <div className="doc-table-header">
@@ -247,23 +283,48 @@ export default function DocumentTable(props: Props) {
                     </thead>
                     <tbody>
                         {sorted.map(row => {
-                            const averageRecognitionResult = props.includeAveragePrediction 
-                                ? getAveragePrediction(row.recognitionResults)
-                                : null
 
-                            const softVotingRecognitionResult = props.includeSoftVotingPrediction
-                                ? aiModelsAccuracy.data && getSoftVotingPrediction(row.recognitionResults, aiModelsAccuracy.data)
-                                : null
+                            let countPredictions = props.countPredictions;
 
-                            let results = [...(row.recognitionResults || [])].sort(
+                            let results: IRecognitionResult[] = [...row.recognitionResults].sort(
                                 (a, b) => b.probability - a.probability
-                            );
+                            )
 
-                            results = [averageRecognitionResult, softVotingRecognitionResult, ...results].filter(x => x) as IRecognitionResult[]
+                            if (props.onlyBest){
+                                results = distinct(results, x => x.modelType);
+                            }
+
+                            if (row.selectedModelType == 'All'){
+                                let averageIndex = props.analysisModels?.indexOf(AnalysisModelEnum.Average) ?? -1;
+                                let softVotingIndex = props.analysisModels?.indexOf(AnalysisModelEnum.SoftVoting) ?? -1;
+
+                                const averageRecognitionResult = averageIndex >= 0
+                                    ? getAveragePrediction(results)
+                                    : null
+
+                                const softVotingRecognitionResult = softVotingIndex >= 0 
+                                    ? aiModelsAccuracy.data && getSoftVotingPrediction(results, aiModelsAccuracy.data)
+                                    : null
+
+                                const sortedAnalysisModels = [
+                                    {index: averageIndex, value: averageRecognitionResult}, 
+                                    {index: softVotingIndex, value: softVotingRecognitionResult}
+                                ].sort((a, b) => a.index - b.index)
+                                    .map(x => x.value)
+
+                                results = [...sortedAnalysisModels, ...results].filter(x => x) as IRecognitionResult[]
+
+                                countPredictions += (averageIndex >= 0 ? 1 : 0) 
+                                    + (softVotingIndex >= 0 ? 1 : 0)
+                            }
+
+                            if (countPredictions == 0){
+                                countPredictions = 1
+                            }
 
                             const imgUrl = imageUrls.get(row.documentId);
 
-                            const rowSpan = results.length ? countPredictions : 0
+                            const rowSpan = Math.min(results.length ? countPredictions : 0, results.length)
 
                             return (
                                 <Fragment key={row.documentId}>

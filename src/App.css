@@ -1034,6 +1034,7 @@ table.dt .doc-thumb {
 }
 
 label{
+  width: min-content;
   font-family: 'Syne', sans-serif;
   font-size: 0.75rem;
   font-weight: 700;
@@ -1043,6 +1044,7 @@ label{
 .label-value{
   display: flex;
   align-items: center;
+  gap: 10px;
   justify-content: flex-start;
   align-content: center;
   flex-wrap: nowrap;
