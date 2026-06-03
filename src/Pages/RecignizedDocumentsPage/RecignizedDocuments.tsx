@@ -8,28 +8,31 @@ import { useEffect, useState } from 'react';
 export default function RecognizedDocumentsPage() {
     const queryClient = useQueryClient();
 
-    const { data, refetch } = useQuery<IRecognizedDocumentDto[]>({
+    const { data } = useQuery<IRecognizedDocumentDto[]>({
         queryKey: ['api/documents', 'hasProbability=true'],
         queryFn: () => get('api/documents', { params: { hasProbability: true } }),
-        refetchInterval: 5000
     }, queryClient);
 
     const deleteDocument = useMutation({
         mutationKey: ['api/documents/delete'],
         mutationFn: (documentId: number) => destroy(`api/documents/${documentId}`),
         onSuccess: () => {
-            refetch()
+            queryClient.invalidateQueries({
+                queryKey: ['api/documents']
+            });
         },
-        onError: (err) => console.error('Upload failed:', err),
+        onError: (err) => console.error('Delete failed:', err),
     }, queryClient);
 
     const deleteDocuments = useMutation({
         mutationKey: ['api/documents/delete'],
         mutationFn: (documentIds: number[]) => destroy(`api/documents`, { params: { documentIds: documentIds } }),
         onSuccess: () => {
-            refetch()
+            queryClient.invalidateQueries({
+                queryKey: ['api/documents']
+            });
         },
-        onError: (err) => console.error('Upload failed:', err),
+        onError: (err) => console.error('Delete failed:', err),
     }, queryClient);
 
     const [countPredictions, setCountPredictions] = useState(1)
@@ -123,17 +126,18 @@ export default function RecognizedDocumentsPage() {
                                 </div>
                                 : undefined}
                             <div className="label-value">
-                                <label htmlFor="onlyBest" title='Только лучшее от модели'>
+                                <label title='Только лучшее от модели'
+                                    style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                                    <input
+                                        type='checkbox'
+                                        checked={onlyBest}
+                                        onChange={(e) => {
+                                            setOnlyBest(e.target.checked);
+                                        }}
+                                        disabled={!data}
+                                    />
                                     Лучшее
                                 </label>
-                                <input
-                                    type='checkbox'
-                                    checked={onlyBest}
-                                    onChange={(e) => {
-                                        setOnlyBest(e.target.checked);
-                                    }}
-                                    disabled={!data}
-                                />
                             </div>
                             <button
                                 key={"reprocess_all"}
