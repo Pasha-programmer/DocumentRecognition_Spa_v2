@@ -111,7 +111,8 @@ function exportRecognizedDocumentsToExcel(recognizedDocumentDto: IRecognizedDocu
             aiModelTypes
                 .filter(m => m != "All")
                 .flatMap(key => {
-                    let recognitionResult = rd.recognitionResults.find(rr => rr.modelType == key);
+                    let sortedRecognitionResults = rd.recognitionResults.filter(rr => rr.modelType == key).sort((a,b) => a.probability - b.probability);
+                    let recognitionResult = sortedRecognitionResults.length > 0 ? sortedRecognitionResults[0] : undefined;
                     return [
                         [`${key} (Символ)`, recognitionResult?.label ?? ''],
                         [`${key} (Вероятность)`, recognitionResult?.probability ? `${Math.round(recognitionResult.probability * 10000) / 100}%` : '']
@@ -134,7 +135,7 @@ export default function DocumentTable(props: Props) {
 
     const [data, setData] = useState([...props.data || []]);
 
-    const isDev = true;
+    const [isDev, setDev] = useState(false);
 
     const queryClient = useQueryClient();
 
@@ -345,7 +346,7 @@ export default function DocumentTable(props: Props) {
                     </span>}
                     <button
                         className='btn btn-primary btn-sm'
-                        onClick={() => handleExport(props.data)}
+                        onClick={() => handleExport(data)}
                     >
                         Экспорт в Excel
                     </button>
@@ -361,6 +362,17 @@ export default function DocumentTable(props: Props) {
                             disabled={!data}
                         />
                         Компактный режим
+                    </label>
+                    <label className="label-value">
+                        <input 
+                            type='checkbox'
+                            checked={isDev}
+                            onChange={(e) => {
+                                setDev(e.target.checked);
+                            }}
+                            disabled={!data}
+                        />
+                        Разработчик
                     </label>
                 </div>
                 <div className="doc-table-header-secondary">
