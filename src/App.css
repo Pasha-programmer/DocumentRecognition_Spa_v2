@@ -696,6 +696,10 @@ table.dt thead tr {
   border-bottom: 1px solid var(--border-subtle);
 }
 
+table.dt tr.edit {
+  border: dotted 2px;
+}
+
 table.dt th {
   padding: 10px 20px;
   text-align: left;
@@ -1061,4 +1065,36 @@ label{
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-sm);;
   padding: 0% 0px 0px 10px;
+}
+
+.styled-input {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 14px;
+  background: var(--bg-glass);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-primary);
+  font-family: 'DM Sans', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: var(--transition);
+  width: 100%;
+  outline: none;
+}
+
+.styled-input:hover:not(:disabled) {
+  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--bg-glass-hover);
+}
+
+.styled-input:focus {
+  border-color: var(--accent-primary);
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.2);
+  outline: none;
+}
+
+.styled-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }

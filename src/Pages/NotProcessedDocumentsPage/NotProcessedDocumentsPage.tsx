@@ -15,8 +15,8 @@ export default function NotProcessedDocumentsPage() {
     });
 
     const aiModelTypes = useQuery<string[]>({
-        queryKey: ['api/documents/aiModelTypes'],
-        queryFn: () => get('api/documents/aiModelTypes'),
+        queryKey: ['api/aiModelTypes'],
+        queryFn: () => get('api/aiModelTypes'),
     });
 
     useEffect(() => {

@@ -4,9 +4,11 @@ import { IRecognitionResult } from '../Interfaces/IRecognitionResult';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { get } from '../Services/ApiClient';
 import { exportToExcel } from '../Services/ExcelService';
+import { GlagoliticCharsSelect } from './GlagoliticCharsSelect';
 
 interface Props {
     data: IRecognizedDocumentDto[];
+    editDocumentIds?: number[];
     title: string;
     countPredictions: number;
     analysisModels?: AnalysisModelEnum[];
@@ -15,7 +17,7 @@ interface Props {
     tableActions?: JSX.Element;
 }
 
-interface KeyValuePair<K,V> {
+interface KeyValuePair<K, V> {
     key: K,
     value: V
 }
@@ -50,8 +52,8 @@ function nextDir(current: SortDir): SortDir {
 
 function SortIcon({ dir }: { dir: SortDir }) {
     if (dir === 'none') return <span style={{ opacity: 0.25, fontSize: '0.7rem', marginLeft: 4 }}>⇅</span>;
-    if (dir === 'asc')  return <span style={{ opacity: 0.8,  fontSize: '0.7rem', marginLeft: 4 }}>↑</span>;
-    return                      <span style={{ opacity: 0.8,  fontSize: '0.7rem', marginLeft: 4 }}>↓</span>;
+    if (dir === 'asc') return <span style={{ opacity: 0.8, fontSize: '0.7rem', marginLeft: 4 }}>↑</span>;
+    return <span style={{ opacity: 0.8, fontSize: '0.7rem', marginLeft: 4 }}>↓</span>;
 }
 
 
@@ -75,32 +77,32 @@ function groupBy(array: IRecognitionResult[], key: keyof IRecognitionResult): {}
 function distinct<T>(items: T[]): T[];
 function distinct<T, K>(items: T[], keySelector: (item: T) => K): T[];
 function distinct<T, K>(items: T[], keySelector?: (item: T) => K): T[] {
-  if (!items || items.length === 0) {
-    return [];
-  }
-
-  if (!keySelector) {
-    // Простое сравнение по значению (аналог сравнения по умолчанию в .NET)
-    return [...new Set(items)];
-  }
-
-  // Сравнение по выбранному ключу
-  const seenKeys = new Set<K>();
-  const result: T[] = [];
-
-  for (const item of items) {
-    const key = keySelector(item);
-    if (!seenKeys.has(key)) {
-      seenKeys.add(key);
-      result.push(item);
+    if (!items || items.length === 0) {
+        return [];
     }
-  }
 
-  return result;
+    if (!keySelector) {
+        // Простое сравнение по значению (аналог сравнения по умолчанию в .NET)
+        return [...new Set(items)];
+    }
+
+    // Сравнение по выбранному ключу
+    const seenKeys = new Set<K>();
+    const result: T[] = [];
+
+    for (const item of items) {
+        const key = keySelector(item);
+        if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            result.push(item);
+        }
+    }
+
+    return result;
 }
 
 function exportRecognizedDocumentsToExcel(recognizedDocumentDto: IRecognizedDocumentDto[], aiModelTypes: string[]) {
-    
+
     const formattedData = recognizedDocumentDto.map(rd => {
 
         let result: Record<string, any> = {
@@ -111,7 +113,7 @@ function exportRecognizedDocumentsToExcel(recognizedDocumentDto: IRecognizedDocu
             aiModelTypes
                 .filter(m => m != "All")
                 .flatMap(key => {
-                    let sortedRecognitionResults = rd.recognitionResults.filter(rr => rr.modelType == key).sort((a,b) => a.probability - b.probability);
+                    let sortedRecognitionResults = rd.recognitionResults.filter(rr => rr.modelType == key).sort((a, b) => a.probability - b.probability);
                     let recognitionResult = sortedRecognitionResults.length > 0 ? sortedRecognitionResults[0] : undefined;
                     return [
                         [`${key} (Символ)`, recognitionResult?.label ?? ''],
@@ -140,14 +142,14 @@ export default function DocumentTable(props: Props) {
     const queryClient = useQueryClient();
 
     const aiModelsAccuracy = useQuery<KeyValuePair<string, number>[]>({
-        queryKey: ['api/documents/aiModelTypes/test-accuracy'],
-        queryFn: () => get('api/documents/aiModelTypes/test-accuracy'),
+        queryKey: ['api/aiModelTypes/test-accuracy'],
+        queryFn: () => get('api/aiModelTypes/test-accuracy'),
         // enabled: props.includeSoftVotingPrediction
     }, queryClient);
 
     const aiModelTypes = useQuery<string[]>({
-        queryKey: ['api/documents/aiModelTypes'],
-        queryFn: () => get('api/documents/aiModelTypes'),
+        queryKey: ['api/aiModelTypes'],
+        queryFn: () => get('api/aiModelTypes'),
         enabled: false,
     });
 
@@ -235,10 +237,10 @@ export default function DocumentTable(props: Props) {
         let groups = groupBy(results, 'label')
 
         let sortedRecognitionResult = Object.keys(groups)
-            .map(x => ({averageProbability: groups[x].map(xx => xx.probability).reduce((q, w) => q + w) / groups[x].length, items: groups[x]}))
+            .map(x => ({ averageProbability: groups[x].map(xx => xx.probability).reduce((q, w) => q + w) / groups[x].length, items: groups[x] }))
             .sort((x: any, y: any) => y.averageProbability - x.averageProbability)
 
-        if (!sortedRecognitionResult.length){
+        if (!sortedRecognitionResult.length) {
             return undefined
         }
 
@@ -254,7 +256,7 @@ export default function DocumentTable(props: Props) {
         let softVotingPrediction: Partial<IRecognitionResult> = {
             documentId: results[0].documentId,
             modelType: "Взвешенное голосование",
-            label: "", 
+            label: "",
             probability: 0,
         }
 
@@ -264,13 +266,13 @@ export default function DocumentTable(props: Props) {
                 return g.probability * aiModelAccuracy
             }).reduce((sum, p) => sum + p)
 
-            if (softVotingPrediction.probability! < sum){
+            if (softVotingPrediction.probability! < sum) {
                 softVotingPrediction.probability = sum
                 softVotingPrediction.label = group[0].label
             }
         });
 
-        if (softVotingPrediction.probability = 0){
+        if (softVotingPrediction.probability = 0) {
             return undefined
         }
 
@@ -286,11 +288,11 @@ export default function DocumentTable(props: Props) {
                 (a, b) => b.probability - a.probability
             )
 
-            if (props.onlyBest){
+            if (props.onlyBest) {
                 results = distinct(results, x => x.modelType);
             }
 
-            if (row.selectedModelType == 'All'){
+            if (row.selectedModelType == 'All') {
                 let averageIndex = props.analysisModels?.indexOf(AnalysisModelEnum.Average) ?? -1;
                 let softVotingIndex = props.analysisModels?.indexOf(AnalysisModelEnum.SoftVoting) ?? -1;
 
@@ -298,13 +300,13 @@ export default function DocumentTable(props: Props) {
                     ? getAveragePrediction(results)
                     : null
 
-                const softVotingRecognitionResult = softVotingIndex >= 0 
+                const softVotingRecognitionResult = softVotingIndex >= 0
                     ? getSoftVotingPrediction(results)
                     : null
 
                 const sortedAnalysisModels = [
-                    {index: averageIndex, value: averageRecognitionResult}, 
-                    {index: softVotingIndex, value: softVotingRecognitionResult}
+                    { index: averageIndex, value: averageRecognitionResult },
+                    { index: softVotingIndex, value: softVotingRecognitionResult }
                 ].sort((a, b) => a.index - b.index)
                     .map(x => x.value)
 
@@ -320,7 +322,7 @@ export default function DocumentTable(props: Props) {
 
     const handleExport = useCallback((recognizedDocumentDto: IRecognizedDocumentDto[]) => {
         aiModelTypes.refetch().then(r => {
-            if (r.data){
+            if (r.data) {
                 exportRecognizedDocumentsToExcel(recognizedDocumentDto, r.data)
             }
         })
@@ -331,6 +333,22 @@ export default function DocumentTable(props: Props) {
         setData([...getAggregatedData(sortedData)])
     }, [getAggregatedData, getSortedData])
 
+    const [editData, setEditData] = useState<Map<number, string>>(props.editDocumentIds ? new Map(props.editDocumentIds.map(id => [id, ""])) : new Map())
+
+    useEffect(() => {
+        if (!props.editDocumentIds || !props.editDocumentIds.length) {
+            setEditData(new Map())
+        }
+        else {
+            const newEditDocumentIds = props.editDocumentIds?.filter(id => !editData.has(id))
+            newEditDocumentIds.forEach(newEditDocumentId => {
+                const recognitionResults = data.find(d => d.documentId === newEditDocumentId)?.recognitionResults;
+                editData.set(newEditDocumentId, (recognitionResults?.length ?? 0) > 0 ? recognitionResults![0].label : "")
+            });
+            setEditData(new Map(editData))
+        }
+    }, [props.editDocumentIds])
+
     return (
         <div className="doc-table-wrapper">
             <div className="doc-table-header">
@@ -339,8 +357,8 @@ export default function DocumentTable(props: Props) {
                     {data && <span className="doc-table-count">
                         {data.length} записей
                         {isDev && <span>
-                            ({data.filter(d => d.fileName.indexOf(d.recognitionResults[0]?.label) >= 0).length} 
-                            / 
+                            ({data.filter(d => d.fileName.indexOf(d.recognitionResults[0]?.label) >= 0).length}
+                            /
                             {data.length - data.filter(d => d.fileName.indexOf(d.recognitionResults[0]?.label) >= 0).length})
                         </span>}
                     </span>}
@@ -353,7 +371,7 @@ export default function DocumentTable(props: Props) {
                 </div>
                 <div className="doc-table-header-secondary">
                     <label className="label-value">
-                        <input 
+                        <input
                             type='checkbox'
                             checked={slimMode}
                             onChange={(e) => {
@@ -364,7 +382,7 @@ export default function DocumentTable(props: Props) {
                         Компактный режим
                     </label>
                     <label className="label-value">
-                        <input 
+                        <input
                             type='checkbox'
                             checked={isDev}
                             onChange={(e) => {
@@ -413,11 +431,13 @@ export default function DocumentTable(props: Props) {
 
                             const imgUrl = imageUrls.get(row.documentId);
 
-                            const rowSpan = Math.max(Math.min(row.recognitionResults.length, props.countPredictions), 1)
+                            const editMode = editData.has(row.documentId);
+
+                            const rowSpan = editMode ? 1 : Math.max(Math.min(row.recognitionResults.length, props.countPredictions), 1)
 
                             return (
                                 <Fragment key={row.documentId}>
-                                    <tr className={isDev && row.recognitionResults.length ? (row.fileName.indexOf(row.recognitionResults[0].label) >= 0 ? 'yellow' : 'red') : ''}>
+                                    <tr className={(editMode ? "edit " : "") + (isDev && row.recognitionResults.length ? (row.fileName.indexOf(row.recognitionResults[0].label) >= 0 ? 'yellow' : 'red') : '')}>
                                         <td rowSpan={rowSpan}>
                                             {imgUrl ? (
                                                 <img src={imgUrl} alt={row.fileName} className="doc-thumb" />
@@ -425,7 +445,7 @@ export default function DocumentTable(props: Props) {
                                                 <div className="doc-thumb-placeholder">📄</div>
                                             )}
                                         </td>
-                                        <td rowSpan={rowSpan} 
+                                        <td rowSpan={rowSpan}
                                             style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
                                             {row.fileName}
                                         </td>
@@ -433,13 +453,39 @@ export default function DocumentTable(props: Props) {
                                             <span className="label-badge">{row.selectedModelType}</span>
                                         </td>
                                         <td>
-                                            {(row.recognitionResults.length > 0 && <span className="label-badge">{row.recognitionResults[0].modelType}</span>)}
+                                            {
+                                                (editMode &&
+                                                    <span className="label-badge">
+                                                        Ручная
+                                                    </span>)
+                                                ||
+                                                (row.recognitionResults.length > 0 &&
+                                                    <span className="label-badge">
+                                                        {row.recognitionResults[0].modelType}
+                                                    </span>)
+                                            }
                                         </td>
                                         <td>
-                                            {row.recognitionResults.length > 0 && <span className="label-badge">{row.recognitionResults[0].label}</span>}
+                                            {editMode
+                                                ? 
+                                                <GlagoliticCharsSelect
+                                                    className="model-select"
+                                                    value={editData.get(row.documentId)!}
+                                                    onChange={(newValue) => {
+                                                        editData.set(row.documentId, newValue)
+                                                        setEditData(new Map(editData))
+                                                    }}
+                                                />
+                                                : row.recognitionResults.length > 0 &&
+                                                <span className="label-badge">{row.recognitionResults[0].label}</span>
+                                            }
                                         </td>
                                         <td>
-                                            {row.recognitionResults.length > 0 && row.recognitionResults[0].probability && <ProbBar value={row.recognitionResults[0].probability} />}
+                                            {(editMode && <ProbBar value={1} />)
+                                                ||
+                                                (row.recognitionResults.length > 0 && row.recognitionResults[0].probability &&
+                                                    <ProbBar value={row.recognitionResults[0].probability} />)
+                                            }
                                         </td>
                                         {props.actions && (
                                             <td rowSpan={rowSpan}>
@@ -448,7 +494,7 @@ export default function DocumentTable(props: Props) {
                                         )}
                                     </tr>
                                     {row.recognitionResults.slice(1, props.countPredictions).map((rr, idx) => (
-                                        <tr key={`${row.documentId}-${idx}`} 
+                                        <tr key={`${row.documentId}-${idx}`}
                                             className={isDev && row.recognitionResults.length ? (row.fileName.indexOf(row.recognitionResults[0].label) >= 0 ? 'yellow' : 'red') : ''}>
                                             <td>
                                                 <span className="label-badge">{rr.modelType}</span>

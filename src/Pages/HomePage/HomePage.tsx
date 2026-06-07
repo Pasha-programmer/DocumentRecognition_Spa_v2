@@ -44,8 +44,8 @@ export default function HomePage() {
     }, queryClient);
 
     const aiModelTypes = useQuery<string[]>({
-        queryKey: ['api/documents/aiModelTypes'],
-        queryFn: () => get('api/documents/aiModelTypes'),
+        queryKey: ['api/aiModelTypes'],
+        queryFn: () => get('api/aiModelTypes'),
     });
 
     useEffect(() => {
