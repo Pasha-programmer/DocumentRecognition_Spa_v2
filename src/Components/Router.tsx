@@ -4,6 +4,7 @@ import DocumentsPage from '../Pages/DocumentsPage/DocumentsPage';
 import RecognizedDocumentsPage from '../Pages/RecignizedDocumentsPage/RecignizedDocuments';
 import NotProcessedDocumentsPage from '../Pages/NotProcessedDocumentsPage/NotProcessedDocumentsPage';
 import { RoutePaths } from '../Constants/RoutePaths';
+import ManualRecognizedDocumentsPage from '../Pages/ManualRecignizedDocumentsPage/ManualRecignizedDocumentsPage';
 
 export default function Router() {
     return (
@@ -13,6 +14,7 @@ export default function Router() {
             <Route path={RoutePaths.Documents} element={<DocumentsPage />} />
             <Route path={RoutePaths.RecognizedDocuments} element={<RecognizedDocumentsPage />} />
             <Route path={RoutePaths.NotProcessedDocuments} element={<NotProcessedDocumentsPage />} />
+            <Route path={RoutePaths.ManualRecognizedDocuments} element={<ManualRecognizedDocumentsPage />} />
         </Routes>
     );
 }

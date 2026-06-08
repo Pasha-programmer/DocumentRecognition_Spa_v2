@@ -8,13 +8,16 @@ import { GlagoliticCharsSelect } from './GlagoliticCharsSelect';
 
 interface Props {
     data: IRecognizedDocumentDto[];
-    editDocumentIds?: number[];
+    editDocumentPredictionIds?: number[];
     title: string;
     countPredictions: number;
     analysisModels?: AnalysisModelEnum[];
     onlyBest?: boolean;
-    actions?: (documentId: number, editMode: boolean) => JSX.Element;
+    documentPredictionActions?: (documentId: number, documentPredictionId: number, editMode: boolean, newRecognitionResult: IRecognitionResult) => JSX.Element;
+    documentActions?: (documentId: number, editMode: boolean) => JSX.Element;
     tableActions?: JSX.Element;
+    hideColumns?: ColumnKey[]
+    onChangeChecked?: (checkedRecords: IRecognizedDocumentDto[]) => void
 }
 
 interface KeyValuePair<K, V> {
@@ -37,7 +40,7 @@ function dataURLtoBlob(dataURL: string): Blob {
     return base64ToBlob(base64Data, mime);
 }
 
-type SortKey = 'fileName' | 'label' | 'selectedModelType' | 'modelType' | 'probability';
+type ColumnKey = "checkBox" | "image" | 'fileName' | 'label' | 'selectedModelType' | 'tunedModelTypes' | 'modelType' | 'probability';
 type SortDir = 'asc' | 'desc' | 'none';
 export enum AnalysisModelEnum {
     Average = "Среднее",
@@ -60,6 +63,11 @@ function SortIcon({ dir }: { dir: SortDir }) {
 function groupBy(array: IRecognitionResult[], key: keyof IRecognitionResult): {} {
     return array.reduce((result, item: IRecognitionResult) => {
         const groupKey = item[key];
+
+        if (!groupKey || groupKey instanceof Array){
+            return result
+        }
+
         if (!result[groupKey]) {
             result[groupKey] = [];
         }
@@ -130,7 +138,7 @@ function exportRecognizedDocumentsToExcel(recognizedDocumentDto: IRecognizedDocu
 
 export default function DocumentTable(props: Props) {
     const [imageUrls, setImageUrls] = useState<Map<number, string>>(new Map());
-    const [sortKey, setSortKey] = useState<SortKey | null>(null);
+    const [sortKey, setSortKey] = useState<ColumnKey | null>(null);
     const [sortDir, setSortDir] = useState<SortDir>('none');
 
     const [slimMode, setSlimMode] = useState(false);
@@ -180,7 +188,7 @@ export default function DocumentTable(props: Props) {
         };
     }, [props.data]);
 
-    const handleSort = (key: SortKey) => {
+    const handleSort = (key: ColumnKey) => {
         if (sortKey !== key) {
             setSortKey(key);
             setSortDir('asc');
@@ -191,7 +199,7 @@ export default function DocumentTable(props: Props) {
         }
     };
 
-    const dirFor = (key: SortKey): SortDir =>
+    const dirFor = (key: ColumnKey): SortDir =>
         sortKey === key ? sortDir : 'none';
 
     const getSortedData = useCallback(() => {
@@ -247,6 +255,7 @@ export default function DocumentTable(props: Props) {
             documentId: results[0].documentId,
             modelType: "Среднее",
             label: sortedRecognitionResult[0].items[0].label,
+            recognitionType: "Auto",
         }
     }, [])
 
@@ -257,6 +266,7 @@ export default function DocumentTable(props: Props) {
             modelType: "Взвешенное голосование",
             label: "",
             probability: 0,
+            recognitionType: "Auto",
         }
 
         Object.keys(groups).map(g => groups[g]).forEach((group: IRecognitionResult[]) => {
@@ -283,9 +293,7 @@ export default function DocumentTable(props: Props) {
     const getAggregatedData = useCallback((recognizedDocuments: IRecognizedDocumentDto[]) => {
         return recognizedDocuments.map(row => {
 
-            let results: IRecognitionResult[] = [...row.recognitionResults].sort(
-                (a, b) => b.probability - a.probability
-            )
+            let results: IRecognitionResult[] = [...row.recognitionResults]
 
             if (props.onlyBest) {
                 results = distinct(results, x => x.modelType);
@@ -312,6 +320,15 @@ export default function DocumentTable(props: Props) {
                 results = [...sortedAnalysisModels, ...results].filter(x => x) as IRecognitionResult[]
             }
 
+            results = [...results].sort(
+                (a, b) => {
+                    if (a.recognitionType === "Manual")
+                        return -1;
+
+                    return b.probability - a.probability
+                }
+            )
+
             return {
                 ...row,
                 recognitionResults: results
@@ -332,10 +349,10 @@ export default function DocumentTable(props: Props) {
         setData([...getAggregatedData(sortedData)])
     }, [getAggregatedData, getSortedData])
 
-    const [editData, setEditData] = useState<Map<number, string>>(props.editDocumentIds ? new Map(props.editDocumentIds.map(id => [id, ""])) : new Map())
+    const [editData, setEditData] = useState<Map<number, IRecognitionResult | undefined>>(props.editDocumentPredictionIds ? new Map(props.editDocumentPredictionIds.map(id => [id, undefined])) : new Map())
 
     useEffect(() => {
-        if (!props.editDocumentIds || !props.editDocumentIds.length) {
+        if (!props.editDocumentPredictionIds || !props.editDocumentPredictionIds.length) {
             setEditData(new Map())
             return
         }
@@ -344,32 +361,44 @@ export default function DocumentTable(props: Props) {
         const newEditData = new Map(editData)
         
         // Добавляем только новые ID, которые еще не в Map
-        props.editDocumentIds.forEach(id => {
+        props.editDocumentPredictionIds.forEach(id => {
             if (!newEditData.has(id)) {
-                const recognitionResults = data.find(d => d.documentId === id)?.recognitionResults;
-                const initialLabel = (recognitionResults?.length ?? 0) > 0 ? recognitionResults![0].label : ""
-                newEditData.set(id, initialLabel)
+                const recognitionResult = data.find(d => d.recognitionResults.find(rr => rr.id === id))?.recognitionResults.find(rr => rr.id === id);
+                const initialRecognitionResult: IRecognitionResult | undefined = recognitionResult ? {...recognitionResult} : undefined;
+
+                if (initialRecognitionResult?.recognitionType == "Auto"){
+                    initialRecognitionResult.id = -initialRecognitionResult.id!
+                    initialRecognitionResult.probability = 1
+                    initialRecognitionResult.modelType = undefined
+                }
+                
+                newEditData.set(id, initialRecognitionResult)
             }
         })
         
         // Удаляем ID, которых больше нет в props.editDocumentIds
         for (const id of newEditData.keys()) {
-            if (!props.editDocumentIds.includes(id)) {
+            if (!props.editDocumentPredictionIds.includes(id)) {
                 newEditData.delete(id)
             }
         }
         
         setEditData(newEditData)
-    }, [props.editDocumentIds, data])
+    }, [props.editDocumentPredictionIds, data])
 
-    const handleLabelChange = useCallback((documentId: number, newValue: string) => {
+    const handleRecognitionResultChange = useCallback((newValue: IRecognitionResult) => {
         setEditData(prevMap => {
-            const newMap = new Map(prevMap)
-            newMap.set(documentId, newValue)
-            return newMap
+            return new Map(prevMap.set(newValue.id!, newValue))
         })
     }, [])
 
+    const [checkedMap, setCheckedMap] = useState<Map<number, IRecognizedDocumentDto>>(new Map<number, IRecognizedDocumentDto>())
+
+    useEffect(() => {
+        if(props.onChangeChecked){
+            props.onChangeChecked(Array.from(checkedMap.values()))
+        }
+    }, [checkedMap])
 
     return (
         <div className="doc-table-wrapper">
@@ -429,103 +458,214 @@ export default function DocumentTable(props: Props) {
                 <table className={"dt" + (slimMode ? " slim" : "")}>
                     <thead>
                         <tr>
-                            <th style={{ width: 60 }}></th>
-                            <th style={thStyle} onClick={() => handleSort('fileName')}>
-                                Файл <SortIcon dir={dirFor('fileName')} />
-                            </th>
-                            <th style={thStyle} onClick={() => handleSort('selectedModelType')}>
-                                Выбранная модель <SortIcon dir={dirFor('selectedModelType')} />
-                            </th>
-                            <th style={thStyle} onClick={() => handleSort('modelType')}>
-                                Модель <SortIcon dir={dirFor('modelType')} />
-                            </th>
-                            <th style={thStyle} onClick={() => handleSort('label')}>
-                                Символ <SortIcon dir={dirFor('label')} />
-                            </th>
-                            <th style={thStyle} onClick={() => handleSort('probability')}>
-                                Точность <SortIcon dir={dirFor('probability')} />
-                            </th>
-                            {props.actions && <th></th>}
+                            {!props.hideColumns?.includes("checkBox") &&
+                                <td>
+                                    <input 
+                                        type='checkbox' 
+                                        checked={checkedMap.size == data.length}
+                                        onChange={(e) => {
+                                            setCheckedMap(prev => {
+                                                if (e.target.checked){
+                                                    data.forEach(d => {
+                                                        prev.set(d.documentId, d)
+                                                    })
+                                                }
+                                                else{
+                                                    prev.clear()
+                                                }
+                                                return new Map(prev);
+                                            })
+                                        }}/>
+                                </td>
+                            }
+                            {!props.hideColumns?.includes("image") &&
+                                <th style={{ width: 60 }}></th>
+                            }   
+                            {!props.hideColumns?.includes("fileName") &&
+                                <th style={thStyle} onClick={() => handleSort('fileName')}>
+                                    Файл <SortIcon dir={dirFor('fileName')} />
+                                </th>
+                            }
+                            {!props.hideColumns?.includes("selectedModelType") &&
+                                <th style={thStyle} onClick={() => handleSort('selectedModelType')}>
+                                    Выбранная модель <SortIcon dir={dirFor('selectedModelType')} />
+                                </th>
+                            }
+                            {!props.hideColumns?.includes("modelType") &&
+                                <th style={thStyle} onClick={() => handleSort('modelType')}>
+                                    Модель <SortIcon dir={dirFor('modelType')} />
+                                </th>
+                            }
+                            {!props.hideColumns?.includes("label") &&
+                                <th style={thStyle} onClick={() => handleSort('label')}>
+                                    Символ <SortIcon dir={dirFor('label')} />
+                                </th>
+                            }
+                            {!props.hideColumns?.includes("probability") &&
+                                <th style={thStyle} onClick={() => handleSort('probability')}>
+                                    Точность <SortIcon dir={dirFor('probability')} />
+                                </th>
+                            }
+                            {!props.hideColumns?.includes("tunedModelTypes") &&
+                                <th style={thStyle}>
+                                    Дообученные модели
+                                </th>
+                            }
+                            {props.documentPredictionActions && <th></th>}
+                            {props.documentActions && <th></th>}
                         </tr>
                     </thead>
                     <tbody>
-                        {data.map(row => {
+                        {data.map((row, index) => {
 
                             const imgUrl = imageUrls.get(row.documentId);
 
-                            const editMode = editData.has(row.documentId);
+                            const editModeFirstDocumentPrediction = editData.has(row.recognitionResults[0].id!);
 
-                            const rowSpan = editMode ? 1 : Math.max(Math.min(row.recognitionResults.length, props.countPredictions), 1)
+                            const rowSpan = Math.max(Math.min(row.recognitionResults.length, props.countPredictions), 1)
 
                             return (
                                 <Fragment key={row.documentId}>
-                                    <tr className={(editMode ? "edit " : "") + (isDev && row.recognitionResults.length ? (row.fileName.indexOf(row.recognitionResults[0].label) >= 0 ? 'yellow' : 'red') : '')}>
-                                        <td rowSpan={rowSpan}>
-                                            {imgUrl ? (
-                                                <img src={imgUrl} alt={row.fileName} className="doc-thumb" />
-                                            ) : (
-                                                <div className="doc-thumb-placeholder">📄</div>
-                                            )}
-                                        </td>
-                                        <td rowSpan={rowSpan}
-                                            style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
-                                            {row.fileName}
-                                        </td>
-                                        <td rowSpan={rowSpan}>
-                                            <span className="label-badge">{row.selectedModelType}</span>
-                                        </td>
-                                        <td>
-                                            {
-                                                (editMode &&
-                                                    <span className="label-badge">
-                                                        Ручная
-                                                    </span>)
-                                                ||
-                                                (row.recognitionResults.length > 0 &&
-                                                    <span className="label-badge">
-                                                        {row.recognitionResults[0].modelType}
-                                                    </span>)
-                                            }
-                                        </td>
-                                        <td>
-                                            {editMode
-                                                ? 
-                                                <GlagoliticCharsSelect
-                                                    className="model-select"
-                                                    value={editData.get(row.documentId)!}
-                                                    onChange={(newValue) => handleLabelChange(row.documentId, newValue)}
-                                                />
-                                                : row.recognitionResults.length > 0 &&
-                                                <span className="label-badge">{row.recognitionResults[0].label}</span>
-                                            }
-                                        </td>
-                                        <td>
-                                            {(editMode && <ProbBar value={1} />)
-                                                ||
-                                                (row.recognitionResults.length > 0 && row.recognitionResults[0].probability &&
-                                                    <ProbBar value={row.recognitionResults[0].probability} />)
-                                            }
-                                        </td>
-                                        {props.actions && (
+                                    <tr className={
+                                            (isDev && row.recognitionResults.length ? (row.fileName.indexOf(row.recognitionResults[0].label) >= 0 ? ' yellow' : ' red') : '')
+                                            + (index % 2 == 0 ? " odd-color" : "")
+                                        }>
+                                        {!props.hideColumns?.includes("checkBox") &&
                                             <td rowSpan={rowSpan}>
-                                                {props.actions(row.documentId, editMode)}
+                                                <input 
+                                                    type='checkbox' 
+                                                    checked={checkedMap.has(row.documentId)}
+                                                    onChange={(e) => {
+                                                        setCheckedMap(prev => {
+                                                            e.target.checked ? prev.set(row.documentId, row) : prev.delete(row.documentId)
+                                                            return new Map(prev);
+                                                        })
+                                                    }}/>
+                                            </td>
+                                        }
+                                        {!props.hideColumns?.includes("image") &&
+                                            <td rowSpan={rowSpan}>
+                                                {imgUrl ? (
+                                                    <img src={imgUrl} alt={row.fileName} className="doc-thumb" />
+                                                ) : (
+                                                    <div className="doc-thumb-placeholder">📄</div>
+                                                )}
+                                            </td>
+                                        }
+                                        {!props.hideColumns?.includes("fileName") &&
+                                            <td rowSpan={rowSpan}
+                                                style={{ color: 'var(--text-primary)', fontWeight: 500 }}>
+                                                {row.fileName}
+                                            </td>
+                                        }
+                                        {!props.hideColumns?.includes("selectedModelType") &&
+                                            <td rowSpan={rowSpan}>
+                                                <span className="label-badge">{row.selectedModelType}</span>
+                                            </td>
+                                        }
+                                        {!props.hideColumns?.includes("modelType") &&
+                                            <td>
+                                                {
+                                                    (editModeFirstDocumentPrediction &&
+                                                        <span className="label-badge">
+                                                            Ручная
+                                                        </span>)
+                                                    ||
+                                                    (row.recognitionResults.length > 0 &&
+                                                        <span className="label-badge">
+                                                            {row.recognitionResults[0].recognitionType === "Auto" 
+                                                                ? row.recognitionResults[0].modelType
+                                                                : "Ручная"
+                                                            }
+                                                        </span>)
+                                                }
+                                            </td>
+                                        }
+                                        {!props.hideColumns?.includes("label") &&
+                                            <td>
+                                                {editModeFirstDocumentPrediction
+                                                    ? 
+                                                    <GlagoliticCharsSelect
+                                                        className="model-select"
+                                                        value={editData.get(row.recognitionResults[0].id!)!.label}
+                                                        onChange={(newValue) => handleRecognitionResultChange({...editData.get(row.recognitionResults[0].id!)!, label: newValue, probability: 1})}
+                                                        />
+                                                    : row.recognitionResults.length > 0 &&
+                                                    <span className="label-badge">{row.recognitionResults[0].label}</span>
+                                                }
+                                            </td>
+                                        }
+                                        {!props.hideColumns?.includes("probability") &&
+                                            <td>
+                                                {(editModeFirstDocumentPrediction && <ProbBar value={1} />)
+                                                    ||
+                                                    (row.recognitionResults.length > 0 && row.recognitionResults[0].probability &&
+                                                        <ProbBar value={row.recognitionResults[0].probability} />)
+                                                }
+                                            </td>
+                                        }
+                                        {!props.hideColumns?.includes("tunedModelTypes") &&
+                                            <td>
+                                                {
+                                                    row.recognitionResults[0].tunedModelTypes?.map(tmt => (
+                                                        <span className="label-badge">{tmt}</span>
+                                                    ))
+                                                }
+                                            </td>
+                                        }
+                                        {props.documentPredictionActions && (
+                                            <td>
+                                                {props.documentPredictionActions(row.documentId, row.recognitionResults[0].id!, editModeFirstDocumentPrediction, editData.get(row.recognitionResults[0].id!)!)}
+                                            </td>
+                                        )}
+                                        {props.documentActions && (
+                                            <td rowSpan={rowSpan}>
+                                                {props.documentActions(row.documentId, editModeFirstDocumentPrediction)}
                                             </td>
                                         )}
                                     </tr>
-                                    {row.recognitionResults.slice(1, props.countPredictions).map((rr, idx) => (
-                                        <tr key={`${row.documentId}-${idx}`}
-                                            className={isDev && row.recognitionResults.length ? (row.fileName.indexOf(row.recognitionResults[0].label) >= 0 ? 'yellow' : 'red') : ''}>
-                                            <td>
-                                                <span className="label-badge">{rr.modelType}</span>
-                                            </td>
-                                            <td>
-                                                <span className="label-badge">{rr.label}</span>
-                                            </td>
-                                            <td>
-                                                {rr.probability && <ProbBar value={rr.probability} />}
-                                            </td>
-                                        </tr>
-                                    ))}
+                                    {row.recognitionResults.slice(1, props.countPredictions).map((rr, idx) => {
+
+                                        const editMode = editData.has(rr.id!);
+
+                                        return (
+                                            <tr key={`${row.documentId}-${idx}`}
+                                                className={
+                                                    (editMode ? "edit" : "") 
+                                                    + (isDev && row.recognitionResults.length ? (row.fileName.indexOf(row.recognitionResults[0].label) >= 0 ? 'yellow' : 'red') : '') 
+                                                    + (index % 2 == 0 ? " odd-color" : "")
+                                                }>
+                                                <td>
+                                                    <span className="label-badge">
+                                                        {rr.recognitionType === "Auto" 
+                                                            ? rr.modelType
+                                                            : "Ручная"
+                                                        }
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {editMode
+                                                        ? 
+                                                        <GlagoliticCharsSelect
+                                                            className="model-select"
+                                                            value={editData.get(rr.id!)!.label}
+                                                            onChange={(newValue) => handleRecognitionResultChange({...editData.get(rr.id!)!, label: newValue, probability: 1})}
+                                                        />
+                                                        :
+                                                        <span className="label-badge">{rr.label}</span>
+                                                    }
+                                                </td>
+                                                <td>
+                                                    {rr.probability && <ProbBar key={rr.id} value={rr.probability} />}
+                                                </td>
+                                                {props.documentPredictionActions && (
+                                                    <td>
+                                                        {props.documentPredictionActions(row.documentId, rr.id!, editMode, editData.get(row.documentId)!)}
+                                                    </td>
+                                                )}
+                                            </tr>
+                                        )
+                                    })}
                                 </Fragment>
                             );
                         })}

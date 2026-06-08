@@ -6,7 +6,7 @@ const links = [
         label: 'Главная',
         icon: (
             <svg viewBox="0 0 20 20" fill="currentColor" className="sidebar-icon">
-                <path d="M12 3L2 12h2v8h6v-6h4v6h6v-8h2L12 3z"/>    
+                <path d="M12 3L2 12h2v8h6v-6h4v6h6v-8h2L12 3z" />
             </svg>
         ),
     },
@@ -34,6 +34,16 @@ const links = [
         icon: (
             <svg viewBox="0 0 20 20" fill="currentColor" className="sidebar-icon">
                 <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+            </svg>
+        ),
+    },
+    {
+        href: RoutePaths.ManualRecognizedDocuments,
+        label: 'Обработанные вручную',
+        icon: (
+            <svg viewBox="0 0 20 20" fill="currentColor" className="sidebar-icon">
+                <path fillRule="evenodd" d="M5.5 7.5a1 1 0 0 1 1-1H7a1 1 0 0 1 1 1v4a1 1 0 0 1-1 1h-.5a1 1 0 0 1-1-1v-4ZM9.5 5a1 1 0 0 1 1-1H11a1 1 0 0 1 1 1v6.5a1 1 0 0 1-1 1h-.5a1 1 0 0 1-1-1V5ZM13.5 7a1 1 0 0 1 1-1H15a1 1 0 0 1 1 1v4.5a1 1 0 0 1-1 1h-.5a1 1 0 0 1-1-1V7Z" clipRule="evenodd" />
+                <path fillRule="evenodd" d="M4 13.5a2 2 0 0 1 2-2h8a2 2 0 0 1 2 2V15a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-1.5Z" clipRule="evenodd" />
             </svg>
         ),
     },
@@ -68,7 +78,7 @@ export default function Menu(props: {
                     </a>
                 ))}
 
-                <br/>
+                <br />
 
                 <div className='sidebar-label'>Инструменты</div>
 

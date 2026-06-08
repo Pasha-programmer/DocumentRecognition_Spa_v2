@@ -14,7 +14,9 @@ export default function DocumentsPage(props: { title?: string }) {
     return (
         <>
             <h1 className="page-title">Все документы</h1>
-            <DocumentTable data={data!} title={props.title ?? 'Все документы'} countPredictions={0}/>
+            <DocumentTable data={data!} title={props.title ?? 'Все документы'} countPredictions={0}
+                hideColumns={["tunedModelTypes", "checkBox"]}
+            />
         </>
     );
 }

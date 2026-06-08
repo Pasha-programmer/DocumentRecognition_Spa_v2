@@ -92,7 +92,8 @@ export default function NotProcessedDocumentsPage() {
                 data={data!}
                 title="Необработанные файлы"
                 countPredictions={0}
-                actions={(documentId) => (
+                hideColumns={["tunedModelTypes", "checkBox"]}
+                documentActions={(documentId) => (
                     <button
                         key={documentId}
                         className="btn btn-ghost btn-sm"

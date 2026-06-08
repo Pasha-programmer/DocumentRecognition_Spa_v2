@@ -293,7 +293,9 @@ export default function HomePage() {
                 </div>
             </div>
 
-            <DocumentTable data={data!} title="История на сегодня" countPredictions={0}/>
+            <DocumentTable data={data!} title="История на сегодня" countPredictions={0} 
+                    hideColumns={["tunedModelTypes", "checkBox"]}
+            />
         </>
     );
 }

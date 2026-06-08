@@ -740,6 +740,11 @@ table.dt .doc-thumb {
   border: 1px solid var(--border-subtle);
 }
 
+/* Альтернативный вариант с четкими границами */
+table.dt tbody tr.odd-color {
+  background: var(--bg-glass);
+}
+
 .doc-thumb-placeholder {
   width: 44px;
   height: 44px;
@@ -1038,11 +1043,11 @@ table.dt .doc-thumb {
 }
 
 .yellow{
-  background-color: #d0ff003a;
+  background-color: #d0ff003a !important;
 }
 
 .red{
-  background-color: #ff000057;
+  background-color: #ff000057 !important;
 }
 
 label{
@@ -1097,4 +1102,13 @@ label{
 .styled-input:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+}
+
+.flex-box{
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: nowrap;
+  flex-direction: row;
+  gap: 10px
 }

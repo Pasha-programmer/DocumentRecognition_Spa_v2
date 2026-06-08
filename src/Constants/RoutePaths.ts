@@ -3,4 +3,5 @@ export const RoutePaths = {
     Documents: "/documents",
     RecognizedDocuments: "/recognized-documents",
     NotProcessedDocuments: "/not-recognized-documents",
+    ManualRecognizedDocuments: "/manual-recognized-documents",
 }
