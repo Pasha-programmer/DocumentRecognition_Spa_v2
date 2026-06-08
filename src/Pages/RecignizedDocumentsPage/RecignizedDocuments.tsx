@@ -3,7 +3,7 @@ import { get, destroy } from '../../Services/ApiClient';
 import { IRecognizedDocumentDto } from '../../Interfaces/IRecognizedDocumentDto';
 import DocumentTable from '../../Components/DocumentTable';
 import { AnalysisModelEnum } from '../../Components/DocumentTable';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useDebugValue, useEffect, useState } from 'react';
 
 export default function RecognizedDocumentsPage() {
     const queryClient = useQueryClient();
@@ -37,10 +37,10 @@ export default function RecognizedDocumentsPage() {
 
     const addManualDocumentPrediction = useMutation({
         mutationKey: ['api/documents/{id}/manual-prediction'],
-        mutationFn: (parameters: {documentId: number, label: string}) => destroy(`api/documents/${parameters.documentId}/manual-prediction`, { 
-            params: { 
-                label: parameters.label 
-            } 
+        mutationFn: (parameters: { documentId: number, label: string }) => destroy(`api/documents/${parameters.documentId}/manual-prediction`, {
+            params: {
+                label: parameters.label
+            }
         }),
         onSuccess: () => {
             queryClient.invalidateQueries({
@@ -71,24 +71,66 @@ export default function RecognizedDocumentsPage() {
         }
     }, [data])
 
+    const handleEditManualDocumentPrediction = useCallback((documentId: number) => {
+        setEditDocumentIds(prev => [...prev, documentId])
+    }, [])
+
     const handleAddManualDocumentPrediction = useCallback((documentId: number, label: string) => {
         addManualDocumentPrediction.mutateAsync({
             documentId: documentId,
             label: label,
         }).then(r => {
-            if (r.data){
-                setEditDocumentIds([...editDocumentIds.filter(id => id != documentId)])
+            if (r.data) {
+                setEditDocumentIds(prev => prev.filter(id => id !== documentId))
             }
         })
-    }, [addManualDocumentPrediction])
-
-    const handleCancelManualDocumentPrediction = useCallback((documentId: number) => {
-        setEditDocumentIds([...editDocumentIds.filter(id => id != documentId)])
     }, [])
 
+    const handleCancelManualDocumentPrediction = useCallback((documentId: number) => {
+        setEditDocumentIds(prev => prev.filter(id => id !== documentId))
+    }, [])
+
+    const getActions = useCallback((documentId: number, editMode: boolean) => {
+        return (
+            <div>
+                {!editMode &&
+                    <button
+                        key={"edit_recognition"}
+                        className='btn btn-ghost btn-sm'
+                        onClick={() => handleEditManualDocumentPrediction(documentId)}>
+                        Редактировать
+                    </button>
+                }
+                {editMode &&
+                    <>
+                        <button
+                            key={"save_recognition"}
+                            className='btn btn-primary btn-sm'
+                            onClick={() => handleAddManualDocumentPrediction(documentId, "label")}>
+                            Сохранить
+                        </button>
+                        <button
+                            key={"cancel_edit_recognition"}
+                            className='btn btn-ghost btn-sm'
+                            onClick={() => handleCancelManualDocumentPrediction(documentId)}>
+                            Отменить
+                        </button>
+                    </>
+                }
+                {!editMode &&
+                    <button
+                        key={"delete_recognition"}
+                        className="btn btn-danger btn-sm"
+                        onClick={() => deleteDocument.mutate(documentId)}>
+                        Удалить
+                    </button>
+                }
+            </div>
+        )
+    }, [editDocumentIds, handleEditManualDocumentPrediction, handleAddManualDocumentPrediction, handleCancelManualDocumentPrediction, deleteDocument])
 
     const predictionOptionValues = [{ label: "Все", value: maxCountPredictions + 1 }]
-        .concat(Array.from({ length: maxCountPredictions + 1 }, (_, i) => ({ label: (i).toString(), value: i})))
+        .concat(Array.from({ length: maxCountPredictions + 1 }, (_, i) => ({ label: (i).toString(), value: i })))
 
     return (
         <>
@@ -101,46 +143,7 @@ export default function RecognizedDocumentsPage() {
                     countPredictions={countPredictions}
                     analysisModels={analysisModels}
                     onlyBest={onlyBest}
-                    actions={(documentId: number) => {
-                        const editMode = editDocumentIds.includes(documentId);
-
-                        return (
-                            <div>
-                                {!editMode &&
-                                    <button
-                                        key={"edit_recognition"}
-                                        className='btn btn-ghost btn-sm'
-                                        onClick={() => setEditDocumentIds([...editDocumentIds, documentId])}>
-                                        Редактировать
-                                    </button>
-                                }
-                                {editMode &&
-                                    <>
-                                        <button
-                                            key={"save_recognition"}
-                                            className='btn btn-primary btn-sm'
-                                            onClick={() => handleAddManualDocumentPrediction(documentId, label)}>
-                                            Сохранить
-                                        </button>
-                                        <button
-                                            key={"cancel_edit_recognition"}
-                                            className='btn btn-ghost btn-sm'
-                                            onClick={() => handleCancelManualDocumentPrediction(documentId)}>
-                                            Отменить
-                                        </button>
-                                    </>
-                                }
-                                {!editMode &&
-                                    <button
-                                        key={"delete_recognition"}
-                                        className="btn btn-danger btn-sm"
-                                        onClick={() => deleteDocument.mutate(documentId)}>
-                                        Удалить
-                                    </button>
-                                }
-                            </div>
-                        )
-                    }}
+                    actions={(documentId: number, editMode: boolean) => getActions(documentId, editMode)}
                     tableActions={
                         <>
                             <div className="label-value">

@@ -13,7 +13,7 @@ interface Props {
     countPredictions: number;
     analysisModels?: AnalysisModelEnum[];
     onlyBest?: boolean;
-    actions?: (documentId: number) => JSX.Element;
+    actions?: (documentId: number, editMode: boolean) => JSX.Element;
     tableActions?: JSX.Element;
 }
 
@@ -144,14 +144,13 @@ export default function DocumentTable(props: Props) {
     const aiModelsAccuracy = useQuery<KeyValuePair<string, number>[]>({
         queryKey: ['api/aiModelTypes/test-accuracy'],
         queryFn: () => get('api/aiModelTypes/test-accuracy'),
-        // enabled: props.includeSoftVotingPrediction
     }, queryClient);
 
     const aiModelTypes = useQuery<string[]>({
         queryKey: ['api/aiModelTypes'],
         queryFn: () => get('api/aiModelTypes'),
         enabled: false,
-    });
+    }, queryClient);
 
     useEffect(() => {
         if (!props.data) return;
@@ -338,16 +337,39 @@ export default function DocumentTable(props: Props) {
     useEffect(() => {
         if (!props.editDocumentIds || !props.editDocumentIds.length) {
             setEditData(new Map())
+            return
         }
-        else {
-            const newEditDocumentIds = props.editDocumentIds?.filter(id => !editData.has(id))
-            newEditDocumentIds.forEach(newEditDocumentId => {
-                const recognitionResults = data.find(d => d.documentId === newEditDocumentId)?.recognitionResults;
-                editData.set(newEditDocumentId, (recognitionResults?.length ?? 0) > 0 ? recognitionResults![0].label : "")
-            });
-            setEditData(new Map(editData))
+
+        // Создаем новый Map на основе текущего
+        const newEditData = new Map(editData)
+        
+        // Добавляем только новые ID, которые еще не в Map
+        props.editDocumentIds.forEach(id => {
+            if (!newEditData.has(id)) {
+                const recognitionResults = data.find(d => d.documentId === id)?.recognitionResults;
+                const initialLabel = (recognitionResults?.length ?? 0) > 0 ? recognitionResults![0].label : ""
+                newEditData.set(id, initialLabel)
+            }
+        })
+        
+        // Удаляем ID, которых больше нет в props.editDocumentIds
+        for (const id of newEditData.keys()) {
+            if (!props.editDocumentIds.includes(id)) {
+                newEditData.delete(id)
+            }
         }
-    }, [props.editDocumentIds])
+        
+        setEditData(newEditData)
+    }, [props.editDocumentIds, data])
+
+    const handleLabelChange = useCallback((documentId: number, newValue: string) => {
+        setEditData(prevMap => {
+            const newMap = new Map(prevMap)
+            newMap.set(documentId, newValue)
+            return newMap
+        })
+    }, [])
+
 
     return (
         <div className="doc-table-wrapper">
@@ -471,10 +493,7 @@ export default function DocumentTable(props: Props) {
                                                 <GlagoliticCharsSelect
                                                     className="model-select"
                                                     value={editData.get(row.documentId)!}
-                                                    onChange={(newValue) => {
-                                                        editData.set(row.documentId, newValue)
-                                                        setEditData(new Map(editData))
-                                                    }}
+                                                    onChange={(newValue) => handleLabelChange(row.documentId, newValue)}
                                                 />
                                                 : row.recognitionResults.length > 0 &&
                                                 <span className="label-badge">{row.recognitionResults[0].label}</span>
@@ -489,7 +508,7 @@ export default function DocumentTable(props: Props) {
                                         </td>
                                         {props.actions && (
                                             <td rowSpan={rowSpan}>
-                                                {props.actions(row.documentId)}
+                                                {props.actions(row.documentId, editMode)}
                                             </td>
                                         )}
                                     </tr>
