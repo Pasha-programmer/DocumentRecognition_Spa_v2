@@ -21,6 +21,7 @@ export default function HomePage() {
 
      // ── Model selection state ──
     const [selectedModel, setSelectedModel] = useState<string>("All");
+    const [useTunedModels, setUseTunedModels] = useState<boolean>(false);
 
     // ── API ──
     const queryClient = useQueryClient();
@@ -146,6 +147,7 @@ export default function HomePage() {
         if (!files.length) return;
         const formData = new FormData();
         formData.append('modelType', selectedModel!)
+        formData.append('useTunedModels', useTunedModels ? "true" : "false")
         files.forEach(f => formData.append('images', f));
         upload.mutate(formData);
     };
@@ -212,22 +214,34 @@ export default function HomePage() {
                     {/* File upload card */}
                     <div className="upload-card">
                         {/* Model selection dropdown */}
-                        <div className="model-selector">
+                        <div className="flex-box">
                             <label htmlFor="modelSelect" className="model-selector-label">
-                                Модель распознавания:
+                                Модель распознавания
+                                {aiModelTypes.isSuccess && 
+                                    <div>
+                                        <select
+                                            id="modelSelect"
+                                            value={selectedModel}
+                                            onChange={(e) => setSelectedModel(e.target.value)}
+                                            className="model-select"
+                                            disabled={upload.isPending}
+                                            defaultValue={aiModelTypes.data[aiModelTypes.data.length - 1]}
+                                        >
+                                            {aiModelTypes.data.map(t => {
+                                                return (<option key={t} value={t}>{t}</option>)
+                                            })}
+                                        </select>
+                                    </div>
+                                }
                             </label>
-                            {aiModelTypes.isSuccess && <select
-                                id="modelSelect"
-                                value={selectedModel}
-                                onChange={(e) => setSelectedModel(e.target.value)}
-                                className="model-select"
-                                disabled={upload.isPending}
-                                defaultValue={aiModelTypes.data[aiModelTypes.data.length - 1]}
-                            >
-                                {aiModelTypes.data.map(t => {
-                                    return (<option key={t} value={t}>{t}</option>)
-                                })}
-                            </select>}
+                            <label className='model-selector-label'>
+                                Использовать дообученные
+                                <input 
+                                    type='checkbox'
+                                    checked={useTunedModels}
+                                    onChange={(e) => setUseTunedModels(e.target.checked)}
+                                />
+                            </label>
                         </div>
 
                         <p className="upload-card-title">📁 Файлы</p>
@@ -283,7 +297,7 @@ export default function HomePage() {
                                 onClick={onUpload}
                                 disabled={files.length === 0 || upload.isPending}
                             >
-                                {upload.isPending
+                                {upload.isPending && aiModelTypes.isSuccess
                                     ? <><span className="spinner" /> Обработка...</>
                                     : `Обработать${files.length > 0 ? ` (${files.length})` : ''}`
                                 }

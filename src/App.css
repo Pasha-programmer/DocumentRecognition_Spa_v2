@@ -852,10 +852,6 @@ table.dt tbody tr.odd-color {
 }
 
 /* ── Model Selector Dropdown ── */
-.model-selector {
-  margin-bottom: 20px;
-}
-
 .model-selector-label {
   display: block;
   font-size: 0.7rem;

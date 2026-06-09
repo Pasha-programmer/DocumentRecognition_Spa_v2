@@ -520,7 +520,7 @@ export default function DocumentTable(props: Props) {
 
                             const imgUrl = imageUrls.get(row.documentId);
 
-                            const editModeFirstDocumentPrediction = editData.has(row.recognitionResults[0].id!);
+                            const editModeFirstDocumentPrediction = row.recognitionResults.length > 0 && editData.has(row.recognitionResults[0].id!);
 
                             const rowSpan = Math.max(Math.min(row.recognitionResults.length, props.countPredictions), 1)
 

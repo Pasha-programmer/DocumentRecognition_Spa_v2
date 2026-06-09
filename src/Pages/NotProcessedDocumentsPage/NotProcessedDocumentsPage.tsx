@@ -35,7 +35,8 @@ export default function NotProcessedDocumentsPage() {
         mutationFn: (documentIds: number[]) =>
             post('api/documents/reprocess', {
                 documentIds: documentIds,
-                modelType: selectedModel
+                modelType: selectedModel,
+                useTunedModels: useTunedModels,
             }, {
                 headers: { 'Content-Type': 'application/json' },
             }),
@@ -68,25 +69,37 @@ export default function NotProcessedDocumentsPage() {
         },
     });
 
+    const [useTunedModels, setUseTunedModels] = useState<boolean>(false);
+
     return (
         <>
             <h1 className="page-title">Необработанные файлы</h1>
             {/* Model selection dropdown */}
-            <div className="model-selector">
+            <div className="flex-box">
                 <label htmlFor="modelSelect" className="model-selector-label">
                     Модель распознавания:
+                    {aiModelTypes.isSuccess && 
+                        <select
+                            id="modelSelect"
+                            value={selectedModel}
+                            onChange={(e) => setSelectedModel(e.target.value)}
+                            className="model-select"
+                            disabled={reprocess.isPending}
+                        >
+                            {aiModelTypes.data.map(t => {
+                                return (<option key={t} value={t}>{t}</option>)
+                            })}
+                        </select>
+                    }
                 </label>
-                {aiModelTypes.isSuccess && <select
-                    id="modelSelect"
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    className="model-select"
-                    disabled={reprocess.isPending}
-                >
-                    {aiModelTypes.data.map(t => {
-                        return (<option key={t} value={t}>{t}</option>)
-                    })}
-                </select>}
+                <label className='model-selector-label'>
+                    Использовать дообученные
+                    <input 
+                        type='checkbox'
+                        checked={useTunedModels}
+                        onChange={(e) => setUseTunedModels(e.target.checked)}
+                    />
+                </label>
             </div>
             <DocumentTable
                 data={data!}
